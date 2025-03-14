@@ -1,10 +1,11 @@
 const { Client } = require('ssh2');
+const logger = require('winston');
 
 const sshConfig = {
   host: process.env.SSH_HOST,
   port: process.env.SSH_PORT,
   username: process.env.SSH_USER,
-  password: process.env.SSH_PASS
+  password: process.env.SSH_PASS,
 };
 
 function executeSSHCommand(command) {
@@ -12,15 +13,19 @@ function executeSSHCommand(command) {
     const conn = new Client();
     conn.on('ready', () => {
       conn.exec(command, (err, stream) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         let output = '';
-        stream.on('data', (data) => output += data);
+        stream.on('data', (data) => {
+          output += data;
+        });
         stream.on('close', (code, signal) => {
           conn.end();
           resolve({ code, signal, output });
         });
       });
-    }).on('error', (err) => reject(err)).connect(sshConfig);
+    })
+      .on('error', reject)
+      .connect(sshConfig);
   });
 }
 
@@ -44,16 +49,25 @@ async function deleteBlockRule(ip, clientId) {
   await executeSSHCommand(command);
 }
 
+const blockClient = async (ip, clientId) => {
+  await addBlockRule(ip, clientId);
+  logger.info(`Blocked IP ${ip} for client ${clientId}`);
+};
+
+const unblockClient = async (ip, clientId) => {
+  await deleteBlockRule(ip, clientId);
+  logger.info(`Unblocked IP ${ip} for client ${clientId}`);
+};
+
 async function setNetworkAccess(client) {
   const now = new Date();
   const shouldBlock = client.subscriptionEndDate < now;
-  const ruleShouldExist = shouldBlock;
   const ruleExistsCurrently = await ruleExists(client.ipAddress, client.clientId);
-  if (ruleShouldExist && !ruleExistsCurrently) {
-    await addBlockRule(client.ipAddress, client.clientId);
-  } else if (!ruleShouldExist && ruleExistsCurrently) {
-    await deleteBlockRule(client.ipAddress, client.clientId);
+  if (shouldBlock && !ruleExistsCurrently) {
+    await blockClient(client.ipAddress, client.clientId);
+  } else if (!shouldBlock && ruleExistsCurrently) {
+    await unblockClient(client.ipAddress, client.clientId);
   }
 }
 
-module.exports = { setNetworkAccess };
+module.exports = { setNetworkAccess, blockClient, unblockClient };
