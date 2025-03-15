@@ -27,11 +27,19 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const paymentRoutes = require('./routes/payments');
+const subscriberRoutes = require('./routes/subscribers');
+const servicePlanRoutes = require('./routes/servicePlans');
+const billingRoutes = require('./routes/billing');
+const networkDeviceRoutes = require('./routes/networkDevices');
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/subscribers', subscriberRoutes);
+app.use('/api/service-plans', servicePlanRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/network-devices', networkDeviceRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello from backend');
@@ -44,6 +52,24 @@ cron.schedule('0 * * * *', async () => {
   const clients = await Client.find();
   for (const client of clients) {
     await setNetworkAccess(client);
+  }
+  
+  // Also check subscribers
+  const Subscriber = require('./models/Subscriber');
+  const subscribers = await Subscriber.find();
+  for (const subscriber of subscribers) {
+    // Update subscriber status based on subscription dates
+    const now = new Date();
+    if (subscriber.subscriptionEndDate < now) {
+      subscriber.status = 'inactive';
+      await subscriber.save();
+      
+      // Block network access if needed
+      if (subscriber.ipAddress) {
+        const { blockClient } = require('./utils/networkControl');
+        await blockClient(subscriber.ipAddress, subscriber.subscriberId);
+      }
+    }
   }
 });
 
