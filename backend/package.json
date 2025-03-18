@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch --runInBand",
+    "test:coverage": "jest --coverage --runInBand",
     "start": "nodemon server.js"
   },
   "keywords": [],
@@ -27,5 +29,9 @@
     "nodemon": "^3.1.9",
     "supertest": "^7.0.0"
   },
-  "description": ""
+  "description": "",
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 10000
+  }
 }
