@@ -32,8 +32,10 @@ const setupDB = async () => {
   mongoServer = await MongoMemoryServer.create();
   const uri = mongoServer.getUri();
   
-  // Use new parser and topology options
-  await mongoose.connect(uri);
+  // Only connect if not already connected
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(uri);
+  }
 
   // Create admin user for auth tests
   const hashedPassword = await bcrypt.hash('testpassword', 10);
@@ -69,5 +71,5 @@ module.exports = {
   setupDB,
   teardownDB,
   getAdminToken,
-  clearDatabase
+  clearDatabase,
 };

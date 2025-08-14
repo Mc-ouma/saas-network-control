@@ -70,4 +70,9 @@ async function setNetworkAccess(client) {
   }
 }
 
-module.exports = { setNetworkAccess, blockClient, unblockClient };
+module.exports = { 
+  setNetworkAccess, 
+  blockClient, 
+  unblockClient, 
+  executeSSHCommand  // Add this export
+};
